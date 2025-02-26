@@ -1,14 +1,34 @@
 const IDb = require('./base/interfaceDb');
 const Sequelize = require('sequelize');
-class PostgreSQLConnection {
-  static connect() { }
-}
+
 class PostgreSQLStrategy extends IDb {
   constructor() {
     super();
     this._herois = null;
     this._sequelize = null;
-    this._connect();
+  }
+
+  async connect() {
+    this._sequelize = new Sequelize(
+      'heroes', // database
+      'juliorocha', // user
+      'minhasenhasecreta', // senha
+      {
+        host: 'localhost',  // Nome do container PostgreSQL
+        dialect: 'postgres',
+        quoteIdentifiers: false,
+        operatorsAliases: false,
+      },
+    );
+
+    try {
+      await this._sequelize.authenticate();
+      console.log('Conexão com o PostgreSQL realizada com sucesso!');
+      this.defineModel();
+      await this._sequelize.sync();  // Adiciona a sincronização do modelo
+    } catch (error) {
+      console.error('Falha na conexão com o PostgreSQL:', error);
+    }
   }
 
   defineModel() {
@@ -31,7 +51,6 @@ class PostgreSQLStrategy extends IDb {
         },
       },
       {
-        //opcoes para base existente
         tableName: 'TB_HEROIS',
         freezeTableName: false,
         timestamps: false,
@@ -39,53 +58,34 @@ class PostgreSQLStrategy extends IDb {
     );
   }
 
-  _connect() {
-    this._sequelize = new Sequelize(
-      'heroes', //database
-      'juliorocha', // user
-      'minhasenhasecreta', //senha
-      {
-        host: 'localhost',
-        dialect: 'postgres',
-        // case sensitive
-        quoteIdentifiers: false,
-        // deprecation warning
-        operatorsAliases: false
-
-        // dialectOptions: {
-        //   ssl: true,
-      },
-    );
-
-    this.defineModel();
-  }
-
   async isConnected() {
     try {
-      // await this._connect();
       await this._sequelize.authenticate();
       return true;
     } catch (error) {
-      console.error('fail!', error);
+      console.error('Erro ao verificar a conexão:', error);
       return false;
     }
   }
 
-  create(item) {
-    return this._herois.create(item, { raw: true });
+  async create(item) {
+    const { dataValues } = await this._herois.create(item);
+    return dataValues;
   }
 
-  read(item) {
-    return this._herois.findAll({ where: item, raw: true });
+  async read(item = {}) {
+    return await this._herois.findAll({ where: item, raw: true });
   }
 
-  update(id, item) {
-    return this._herois.update(item, { where: { id } });
+  async update(id, item) {
+    return await this._herois.update(item, { where: { id } });
   }
-  delete(id) {
+
+  async delete(id) {
     const query = id ? { id } : {};
-    return this._herois.destroy({ where: query });
+    return await this._herois.destroy({ where: query });
   }
 }
+
 
 module.exports = PostgreSQLStrategy;
